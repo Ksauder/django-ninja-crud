@@ -1,5 +1,5 @@
 from datetime import date
-from typing import Generic, Optional, TypeVar
+from typing import Generic, TypeVar
 from uuid import UUID
 
 from ninja import Schema
@@ -17,14 +17,14 @@ class DepartmentOut(Schema):
 class EmployeeIn(Schema):
     first_name: str
     last_name: str
-    birthdate: Optional[date] = None
+    birthdate: date | None = None
 
 
 class EmployeeOut(Schema):
     id: UUID
     first_name: str
     last_name: str
-    birthdate: Optional[date] = None
+    birthdate: date | None = None
     department_id: UUID
 
 

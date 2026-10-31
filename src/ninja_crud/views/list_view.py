@@ -1,5 +1,6 @@
+from collections.abc import Callable
 from types import FunctionType
-from typing import Annotated, Any, Callable, Optional, Union, cast
+from typing import Annotated, Any, cast
 
 from django.db.models import Model, QuerySet
 from django.http import HttpRequest
@@ -86,19 +87,19 @@ class ListView(APIView):
 
     def __init__(
         self,
-        name: Optional[str] = None,
-        methods: Union[list[str], set[str], None] = None,
+        name: str | None = None,
+        methods: list[str] | set[str] | None = None,
         path: str = "/",
         response_status: int = 200,
         response_body: Any = None,
-        model: Optional[type[Model]] = None,
-        path_parameters: Optional[type[BaseModel]] = None,
-        query_parameters: Optional[type[BaseModel]] = None,
-        get_queryset: Optional[QuerySetGetter] = None,
-        filter_queryset: Optional[QuerySetFilter] = None,
-        pagination_class: Optional[type[PaginationBase]] = LimitOffsetPagination,
-        decorators: Optional[list[Decorator]] = None,
-        operation_kwargs: Optional[dict[str, Any]] = None,
+        model: type[Model] | None = None,
+        path_parameters: type[BaseModel] | None = None,
+        query_parameters: type[BaseModel] | None = None,
+        get_queryset: QuerySetGetter | None = None,
+        filter_queryset: QuerySetFilter | None = None,
+        pagination_class: type[PaginationBase] | None = LimitOffsetPagination,
+        decorators: list[Decorator] | None = None,
+        operation_kwargs: dict[str, Any] | None = None,
     ) -> None:
         super().__init__(
             name=name,
@@ -122,8 +123,8 @@ class ListView(APIView):
     def handler(
         self,
         request: HttpRequest,
-        path_parameters: Optional[BaseModel],
-        query_parameters: Optional[BaseModel],
+        path_parameters: BaseModel | None,
+        query_parameters: BaseModel | None,
     ) -> QuerySet[Model]:
         queryset = self.get_queryset(request, path_parameters)
         return self.filter_queryset(queryset, query_parameters)
@@ -141,12 +142,12 @@ class ListView(APIView):
         return handler
 
     def _default_get_queryset(
-        self, request: HttpRequest, path_parameters: Optional[BaseModel]
+        self, request: HttpRequest, path_parameters: BaseModel | None
     ) -> QuerySet[Model]:
         return cast(type[Model], self.model).objects.get_queryset()
 
     def _default_filter_queryset(
-        self, queryset: QuerySet[Model], query_parameters: Optional[BaseModel]
+        self, queryset: QuerySet[Model], query_parameters: BaseModel | None
     ) -> QuerySet[Model]:
         if isinstance(query_parameters, FilterSchema):
             queryset = query_parameters.filter(queryset)

@@ -7,7 +7,7 @@ name = "django-ninja-crud"
 version = "0.6.2"
 description = "🧩 Modular, composable API views for scalable Django Ninja projects, with built-in CRUD."
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 license = {file = "LICENSE"}
 authors = [{name = "Hicham Bakri", email = "hicham.bakri76@gmail.com"}]
 maintainers = [{name = "Hicham Bakri", email = "hicham.bakri76@gmail.com"}]
@@ -17,7 +17,6 @@ classifiers = [
     "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python",
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",

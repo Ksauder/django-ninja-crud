@@ -1,5 +1,6 @@
+from collections.abc import Callable
 from types import FunctionType
-from typing import Annotated, Any, Callable, Optional, Union, cast
+from typing import Annotated, Any, cast
 
 from django.db.models import ManyToManyField, Model
 from django.http import HttpRequest
@@ -86,19 +87,19 @@ class UpdateView(APIView):
 
     def __init__(
         self,
-        name: Optional[str] = None,
-        methods: Union[list[str], set[str], None] = None,
+        name: str | None = None,
+        methods: list[str] | set[str] | None = None,
         path: str = "/{id}",
         response_status: int = 200,
         response_body: Any = None,
-        model: Optional[type[Model]] = None,
-        path_parameters: Optional[type[BaseModel]] = None,
-        request_body: Optional[type[BaseModel]] = None,
-        get_model: Optional[ModelGetter] = None,
-        pre_save: Optional[ModelHook] = None,
-        post_save: Optional[ModelHook] = None,
-        decorators: Optional[list[Decorator]] = None,
-        operation_kwargs: Optional[dict[str, Any]] = None,
+        model: type[Model] | None = None,
+        path_parameters: type[BaseModel] | None = None,
+        request_body: type[BaseModel] | None = None,
+        get_model: ModelGetter | None = None,
+        pre_save: ModelHook | None = None,
+        post_save: ModelHook | None = None,
+        decorators: list[Decorator] | None = None,
+        operation_kwargs: dict[str, Any] | None = None,
     ) -> None:
         super().__init__(
             name=name,
@@ -120,7 +121,7 @@ class UpdateView(APIView):
     def handler(
         self,
         request: HttpRequest,
-        path_parameters: Optional[BaseModel],
+        path_parameters: BaseModel | None,
         request_body: BaseModel,
     ) -> Model:
         instance = self.get_model(request, path_parameters)
@@ -147,7 +148,7 @@ class UpdateView(APIView):
         return handler
 
     def _default_get_model(
-        self, request: HttpRequest, path_parameters: Optional[BaseModel]
+        self, request: HttpRequest, path_parameters: BaseModel | None
     ) -> Model:
         return cast(type[Model], self.model).objects.get(
             **(path_parameters.model_dump() if path_parameters else {})

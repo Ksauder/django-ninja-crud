@@ -1,5 +1,5 @@
-from collections.abc import Awaitable
-from typing import Any, Callable, Optional
+from collections.abc import Awaitable, Callable
+from typing import Any
 
 from django.db.models import Model, QuerySet
 from django.http import HttpRequest
@@ -10,11 +10,11 @@ Decorator = Callable[[Callable[..., Any]], Callable[..., Any]]
 ModelHook = Callable[[HttpRequest, Model], None]
 AsyncModelHook = Callable[[HttpRequest, Model], Awaitable[None]]
 
-ModelGetter = Callable[[HttpRequest, Optional[BaseModel]], Model]
-AsyncModelGetter = Callable[[HttpRequest, Optional[BaseModel]], Awaitable[Model]]
+ModelGetter = Callable[[HttpRequest, BaseModel | None], Model]
+AsyncModelGetter = Callable[[HttpRequest, BaseModel | None], Awaitable[Model]]
 
-QuerySetGetter = Callable[[HttpRequest, Optional[BaseModel]], QuerySet[Model]]
+QuerySetGetter = Callable[[HttpRequest, BaseModel | None], QuerySet[Model]]
 AsyncQuerySetGetter = Callable[
-    [HttpRequest, Optional[BaseModel]], Awaitable[QuerySet[Model]]
+    [HttpRequest, BaseModel | None], Awaitable[QuerySet[Model]]
 ]
-QuerySetFilter = Callable[[QuerySet[Model], Optional[BaseModel]], QuerySet[Model]]
+QuerySetFilter = Callable[[QuerySet[Model], BaseModel | None], QuerySet[Model]]

@@ -1,5 +1,6 @@
+from collections.abc import Callable
 from types import FunctionType
-from typing import Annotated, Any, Callable, Optional, Union, cast
+from typing import Annotated, Any, cast
 
 from django.db.models import Model
 from django.http import HttpRequest
@@ -73,16 +74,16 @@ class ReadView(APIView):
 
     def __init__(
         self,
-        name: Optional[str] = None,
-        methods: Union[list[str], set[str], None] = None,
+        name: str | None = None,
+        methods: list[str] | set[str] | None = None,
         path: str = "/{id}",
         response_status: int = 200,
         response_body: Any = None,
-        model: Optional[type[Model]] = None,
-        path_parameters: Optional[type[BaseModel]] = None,
-        get_model: Optional[ModelGetter] = None,
-        decorators: Optional[list[Decorator]] = None,
-        operation_kwargs: Optional[dict[str, Any]] = None,
+        model: type[Model] | None = None,
+        path_parameters: type[BaseModel] | None = None,
+        get_model: ModelGetter | None = None,
+        decorators: list[Decorator] | None = None,
+        operation_kwargs: dict[str, Any] | None = None,
     ) -> None:
         super().__init__(
             name=name,
@@ -101,7 +102,7 @@ class ReadView(APIView):
     def handler(
         self,
         request: HttpRequest,
-        path_parameters: Optional[BaseModel],
+        path_parameters: BaseModel | None,
     ) -> Model:
         return self.get_model(request, path_parameters)
 
@@ -115,7 +116,7 @@ class ReadView(APIView):
         return handler
 
     def _default_get_model(
-        self, request: HttpRequest, path_parameters: Optional[BaseModel]
+        self, request: HttpRequest, path_parameters: BaseModel | None
     ) -> Model:
         return cast(type[Model], self.model).objects.get(
             **(path_parameters.model_dump() if path_parameters else {})
