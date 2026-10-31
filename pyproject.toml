@@ -45,14 +45,15 @@ Documentation = "https://django-ninja-crud.readme.io"
 [tool.hatch.build.targets.wheel]
 packages = ["src/ninja_crud"]
 
-[tool.uv]
-dev-dependencies = [
+[dependency-groups]
+dev = [
     "coverage>=7.6.0,<8.0",
     "pre-commit>=3.5.0,<4.0",
     "pydoc-markdown>=4.8.2,<5.0",
     "pyyaml>=6.0.1,<7.0",
     "python-frontmatter>=1.1.0,<2.0",
     "django-rest-testing>=0.1.0,<0.2",
+    "django-stubs>=5.0,<7.0",
 ]
 
 [tool.coverage.report]
