@@ -22,7 +22,7 @@ repos:
       - id: mypy
         files: ^src/ninja_crud/
         args: [--ignore-missing-imports, --strict]
-        additional_dependencies: ['types-PyYAML', 'django-stubs', 'pydantic']
+        additional_dependencies: ['django-stubs', 'pydantic']
 
 ci:
   autofix_commit_msg: 'ci(pre-commit): 👷 auto fixes'

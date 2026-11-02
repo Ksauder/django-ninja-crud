@@ -13,33 +13,15 @@ For an overview of how to contribute to open-source projects on GitHub, see [Git
 
 ## Setting up Development Environment
 
-1. **Install Python 3.x**: Make sure Python 3.x is installed on your machine.
+1. **Install devenv**: Follow the [devenv installation guide](https://devenv.sh/getting-started/)
 
-2. **Create a Virtual Environment**:
-    ```bash
-    python3 -m venv venv
-    ```
+2. **Enable auto activation**: Follow the [auto-activation guide](https://devenv.sh/automatic-shell-activation/)
 
-3. **Activate the Virtual Environment**:
+3. **Enter the Development Shell**:
     ```bash
-    source venv/bin/activate
+    devenv shell
     ```
-
-4. **Install Poetry**:
-    ```bash
-    pip install poetry
-    ```
-
-5. **Install Project Dependencies**:
-    ```bash
-    poetry install
-    ```
-
-6. **Install Pre-commit Hooks**: Set up the pre-commit hooks with:
-    ```bash
-    pre-commit install
-    ```
-    This will automatically run checks before each commit, helping you adhere to the coding and commit conventions.
+    This provisions Python, creates a virtual environment, installs the project dependencies with `uv`, and installs the git hooks (ruff, mypy, and file checks) that run before each commit. To run the hooks manually inside the shell, use `prek run --all-files -c .pre-commit-config.devenv.yaml`.
 
 ## Running Tests
 
@@ -47,9 +29,10 @@ After setting up your development environment, you can run tests to make sure
 everything is functioning as expected. To run the tests, use the following commands:
 
 ```bash
-coverage run -m django test --settings=tests.test_settings
-coverage report
+run-tests
 ```
+
+Or run the git hooks and tests together with `devenv test`.
 
 ## Coding and Commit Conventions
 

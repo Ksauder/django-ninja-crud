@@ -48,6 +48,7 @@ packages = ["src/ninja_crud"]
 [dependency-groups]
 dev = [
     "coverage>=7.6.0,<8.0",
+    "mypy>=1.15.0,<2.0",
     "pre-commit>=3.5.0,<4.0",
     "pydoc-markdown>=4.8.2,<5.0",
     "pyyaml>=6.0.1,<7.0",
