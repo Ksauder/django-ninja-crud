@@ -54,6 +54,7 @@ dev = [
     "python-frontmatter>=1.1.0,<2.0",
     "django-rest-testing>=0.1.0,<0.2",
     "django-stubs>=5.0,<7.0",
+    "ipython>=8.39.0",
 ]
 
 [tool.coverage.report]
