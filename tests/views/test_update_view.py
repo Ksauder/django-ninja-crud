@@ -48,7 +48,7 @@ class TestUpdateView(TestCase):
         path_parameters = self.PathParameters(id=self.item.id)
         request_body = ItemIn(name="updated-item")
         updated_instance = self.update_view.handler(
-            HttpRequest(), path_parameters, request_body
+            HttpRequest(), path_parameters, None, request_body
         )
 
         self.assertIsInstance(updated_instance, Item)
@@ -66,4 +66,4 @@ class TestUpdateView(TestCase):
         update_view.bind_to_viewset(ItemViewSet, "update_view")
         self.assertEqual(update_view.model, Item)
         self.assertEqual(update_view.request_body, ItemIn)
-        self.assertEqual(update_view.response_schema, ItemOut)
+        self.assertEqual(update_view.response_body, ItemOut)

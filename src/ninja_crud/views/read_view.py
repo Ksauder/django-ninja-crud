@@ -1,4 +1,4 @@
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from django.db.models import Model
 from django.http import HttpRequest
@@ -6,6 +6,9 @@ from pydantic import BaseModel
 
 from ninja_crud.views.api_view import APIView
 from ninja_crud.views.types import Decorator, ModelGetter
+
+if TYPE_CHECKING:
+    from ninja_crud.viewsets import APIViewSet
 
 
 class ReadView(APIView):
@@ -16,27 +19,16 @@ class ReadView(APIView):
     a single model instance based on the path parameters. It is intended to be used
     in viewsets or as standalone views to simplify the creation of read endpoints.
 
+    Takes every `APIView` argument (see `APIView` for their descriptions), with
+    defaults `methods=["GET"]`, `path="/{id}"`, `response_status=200` and
+    `response_body=None`. Does not inherit the viewset's `default_request_body`.
+
     Args:
-        name (str | None, optional): View function name. Defaults to `None`. If None,
-            uses class attribute name in viewsets or "handler" for standalone views.
-        methods (list[str] | set[str], optional): HTTP methods. Defaults to `["GET"]`.
-        path (str, optional): URL path. Defaults to `"/{id}"`.
-        response_status (int, optional): HTTP response status code. Defaults to `200`.
-        response_body (Any, optional): Response body type. Defaults to `None`.
-            If None, uses the default response body of the viewset.
-        model (type[django.db.models.Model], optional): Associated Django model.
-            Inherits from viewset if not provided. Defaults to `None`.
-        path_parameters (type[BaseModel], optional): Path parameters type.
-            Defaults to `None`. If not provided, resolved from the path and model.
         get_model ((HttpRequest, BaseModel | None) -> Model, optional): Retrieves model
             instance. Default uses path parameters (e.g., `self.model.objects.get(id=path_parameters.id)`
             for `/{id}` path). Useful for customizing model retrieval logic.
             Should have the signature:
-            - `(request: HttpRequest, path_parameters: Optional[BaseModel]) -> Model`
-        decorators (list[Callable], optional): View function decorators
-            (applied in reverse order). Defaults to `None`.
-        operation_kwargs (dict[str, Any], optional): Additional operation
-            keyword arguments. Defaults to `None`.
+            - `(request: HttpRequest, path_parameters: BaseModel | None) -> Model`
 
     Example:
     ```python
@@ -71,25 +63,32 @@ class ReadView(APIView):
 
     def __init__(
         self,
-        name: str | None = None,
         methods: list[str] | set[str] | None = None,
         path: str = "/{id}",
+        *,
+        name: str | None = None,
         response_status: int = 200,
         response_body: Any = None,
+        responses: dict[int, Any] | None = None,
         model: type[Model] | None = None,
         path_parameters: type[BaseModel] | None = None,
-        get_model: ModelGetter | None = None,
+        query_parameters: type[BaseModel] | None = None,
+        request_body: type[BaseModel] | None = None,
         decorators: list[Decorator] | None = None,
         operation_kwargs: dict[str, Any] | None = None,
+        get_model: ModelGetter | None = None,
     ) -> None:
         super().__init__(
-            name=name,
             methods=methods or ["GET"],
             path=path,
-            status_code=response_status,
-            response_schema=response_body,
+            name=name,
+            response_status=response_status,
+            response_body=response_body,
+            responses=responses,
             model=model,
             path_parameters=path_parameters,
+            query_parameters=query_parameters,
+            request_body=request_body,
             decorators=decorators,
             operation_kwargs=operation_kwargs,
         )
@@ -99,5 +98,10 @@ class ReadView(APIView):
         self,
         request: HttpRequest,
         path_parameters: BaseModel | None,
+        query_parameters: BaseModel | None,
+        request_body: BaseModel | None,
     ) -> Model:
         return self.get_model(request, path_parameters)
+
+    def get_default_request_body(self, api_viewset_class: type["APIViewSet"]) -> Any:
+        return None

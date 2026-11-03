@@ -21,8 +21,8 @@ class TestAPIView(TestCase):
             name="delete_item",
             methods=["DELETE"],
             path="/{id}",
-            status_code=204,
-            response_schema=None,
+            response_status=204,
+            response_body=None,
         )
 
     def test_as_operation(self):
@@ -121,10 +121,10 @@ class TestAPIView(TestCase):
         api_view = CustomAPIView(path="/{id}", methods=["GET"])
         self.assertEqual(api_view.as_operation()["response"], ninja.constants.NOT_SET)
 
-        api_view = CustomAPIView(path="/{id}", methods=["GET"], response_schema=model_1)
+        api_view = CustomAPIView(path="/{id}", methods=["GET"], response_body=model_1)
         self.assertEqual(api_view.as_operation()["response"], {200: model_1})
 
-        api_view = CustomAPIView(path="/{id}", methods=["DELETE"], status_code=204)
+        api_view = CustomAPIView(path="/{id}", methods=["DELETE"], response_status=204)
         self.assertEqual(api_view.as_operation()["response"], {204: None})
 
         api_view = CustomAPIView(
@@ -135,25 +135,25 @@ class TestAPIView(TestCase):
         )
 
         api_view = CustomAPIView(
-            path="/{id}", methods=["GET"], response_schema=model_1, status_code=200
+            path="/{id}", methods=["GET"], response_body=model_1, response_status=200
         )
         self.assertEqual(api_view.as_operation()["response"], {200: model_1})
 
         api_view = CustomAPIView(
-            path="/{id}", methods=["DELETE"], status_code=204, responses={404: str}
+            path="/{id}", methods=["DELETE"], response_status=204, responses={404: str}
         )
         self.assertEqual(api_view.as_operation()["response"], {204: None, 404: str})
 
         api_view = CustomAPIView(
-            path="/{id}", methods=["GET"], response_schema=model_1, responses={404: str}
+            path="/{id}", methods=["GET"], response_body=model_1, responses={404: str}
         )
         self.assertEqual(api_view.as_operation()["response"], {200: model_1, 404: str})
 
         api_view = CustomAPIView(
             path="/{id}",
             methods=["GET"],
-            response_schema=model_1,
-            status_code=201,
+            response_body=model_1,
+            response_status=201,
             responses={404: str},
         )
         self.assertEqual(api_view.as_operation()["response"], {201: model_1, 404: str})

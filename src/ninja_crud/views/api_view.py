@@ -3,7 +3,6 @@ import asyncio
 import functools
 import inspect
 from collections.abc import Callable, Mapping
-from types import FunctionType
 from typing import TYPE_CHECKING, Annotated, Any, Union, cast, get_args, get_origin
 
 import django.db.models
@@ -35,26 +34,30 @@ class APIView(abc.ABC):
     functionality, enabling you to refactor common view logic into reusable components.
 
     Args:
-        path (str): The URL path to be used for this *path operation*. It can contain
-            path parameters in the format `{parameter_name}`. For example, `"/{id}"`.
-        methods (list[str] | set[str]): The HTTP methods that this view should handle.
-            For example, `["GET"]` or `{"GET", "POST"}`. It can also receive StrEnum
-            values, such as Python's [`http.HTTPMethod`](https://docs.python.org/3/library/http.html#http.HTTPMethod).
-        response_schema (Any, optional): The type to use for the primary response.
-            It can be any valid Pydantic field type, including Pydantic models,
-            primitive types, or complex structures like `list` or `dict`.
-            Defaults to `ninja.constants.NOT_SET`.
-        status_code (int | None, optional): The default status code for the primary
+        methods (list[str] | set[str], optional): The HTTP methods that this view
+            should handle. For example, `["GET"]` or `{"GET", "POST"}`. It can also
+            receive StrEnum values, such as Python's [`http.HTTPMethod`](https://docs.python.org/3/library/http.html#http.HTTPMethod).
+            Defaults to `["GET"]`.
+        path (str, optional): The URL path to be used for this *path operation*. It
+            can contain path parameters in the format `{parameter_name}`. For example,
+            `"/{id}"`. Defaults to `"/"`.
+        name (str, optional): The name of the view function, used by the OpenAPI docs.
+            If not provided, defaults to the class attribute name if the view is part
+            of a viewset, or to `"handler"` for standalone views. Defaults to `None`.
+        response_status (int | None, optional): The default status code for the primary
             response. Can be an integer or an `IntEnum` (e.g., Python's
             [`http.HTTPStatus`](https://docs.python.org/3/library/http.html#http.HTTPStatus)).
-            If not specified, defaults to `200` when a response_schema is provided.
+            If not specified, defaults to `200` when a response_body is provided.
+        response_body (Any, optional): The type to use for the primary response.
+            It can be any valid Pydantic field type, including Pydantic models,
+            primitive types, or complex structures like `list` or `dict`. If `None`
+            when the view is bound to a viewset, uses `get_default_response_body`
+            (the viewset's `default_response_body`). Defaults to
+            `ninja.constants.NOT_SET`.
         responses (dict[int, Any] | None, optional): Additional responses that could be
             returned by this *path operation*. The key is the status code, and the value
             is the response schema. These are merged with the primary response.
             Defaults to `None`.
-        name (str, optional): The name of the view function, used by the OpenAPI docs.
-            If not provided, defaults to the class attribute name if the view is part
-            of a viewset. Defaults to `None`.
         model (type[django.db.models.Model], optional): Associated Django model.
             Inherits from viewset if not provided. Defaults to `None`.
         path_parameters (type[BaseModel], optional): Path parameters type, injected
@@ -63,8 +66,9 @@ class APIView(abc.ABC):
         query_parameters (type[BaseModel], optional): Query parameters type,
             injected into a handler `query_parameters` argument. Defaults to `None`.
         request_body (type[BaseModel], optional): Request body type, injected into a
-            handler `request_body` argument. Defaults to `None`. If not provided,
-            inherits the viewset's `default_request_body`.
+            handler `request_body` argument. If not provided when the view is bound to
+            a viewset, uses `get_default_request_body` (the viewset's
+            `default_request_body`). Defaults to `None`.
         decorators (list[Callable], optional): View function decorators
             (applied in reverse order). Defaults to `None`.
         operation_kwargs (dict[str, Any], optional): Additional operation
@@ -90,15 +94,15 @@ class APIView(abc.ABC):
     class ReadView(APIView):
         def __init__(
             self,
-            response_schema: Any = NOT_SET,
+            response_body: Any = NOT_SET,
             model: type[models.Model] | None = None,
             name: Optional[str] = None,
         ) -> None:
             super().__init__(
                 path="/{id}",
                 methods=["GET"],
-                response_schema=response_schema,
-                status_code=200,
+                response_body=response_body,
+                response_status=200,
                 name=name,
             )
             self.model = model
@@ -112,15 +116,15 @@ class APIView(abc.ABC):
     class AsyncReadView(APIView):
         def __init__(
             self,
-            response_schema: Any = NOT_SET,
+            response_body: Any = NOT_SET,
             model: type[models.Model] | None = None,
             name: Optional[str] = None,
         ) -> None:
             super().__init__(
                 path="/async/{id}",
                 methods=["GET"],
-                response_schema=response_schema,
-                status_code=200,
+                response_body=response_body,
+                response_status=200,
                 name=name,
             )
             self.model = model
@@ -165,13 +169,13 @@ class APIView(abc.ABC):
     ReadView(
         name="read_department",
         model=Department,
-        response_schema=DepartmentOut
+        response_body=DepartmentOut
     ).add_view_to(api)
 
     AsyncReadView(
         name="async_read_department",
         model=Department,
-        response_schema=DepartmentOut
+        response_body=DepartmentOut
     ).add_view_to(api)
     ```
 
@@ -191,8 +195,8 @@ class APIView(abc.ABC):
         api = api
         model = Department
 
-        read_department = ReadView(response_schema=DepartmentOut)
-        async_read_department = AsyncReadView(response_schema=DepartmentOut)
+        read_department = ReadView(response_body=DepartmentOut)
+        async_read_department = AsyncReadView(response_body=DepartmentOut)
     ```
 
     This setup provides both synchronous and asynchronous endpoints for reading
@@ -202,13 +206,13 @@ class APIView(abc.ABC):
 
     def __init__(
         self,
-        path: str,
-        methods: list[str] | set[str],
+        methods: list[str] | set[str] | None = None,
+        path: str = "/",
         *,
-        response_schema: Any = NOT_SET,
-        status_code: int | None = None,
-        responses: dict[int, Any] | None = None,
         name: str | None = None,
+        response_status: int | None = None,
+        response_body: Any = NOT_SET,
+        responses: dict[int, Any] | None = None,
         model: type[django.db.models.Model] | None = None,
         path_parameters: type[pydantic.BaseModel] | None = None,
         query_parameters: type[pydantic.BaseModel] | None = None,
@@ -217,16 +221,16 @@ class APIView(abc.ABC):
         operation_kwargs: dict[str, Any] | None = None,
     ) -> None:
         self.path = path
-        self.methods = methods
-        self.response_schema = response_schema
-        self.status_code = status_code
+        self.methods = methods or ["GET"]
+        self.response_body = response_body
+        self.response_status = response_status
         self.responses = responses or {}
         self.name = name
         self.model = model
         self.path_parameters = path_parameters
         self.query_parameters = query_parameters
         self.request_body = request_body
-        self.decorators = [*(decorators or []), self._update_handler_annotations]
+        self.decorators = decorators or []
         self.operation_kwargs = operation_kwargs or {}
         self._api_viewset_class: type[APIViewSet] | None = None
 
@@ -250,7 +254,7 @@ class APIView(abc.ABC):
 
         router = Router()
 
-        ReadView(Department, DepartmentOut).add_view_to(router)
+        ReadView(model=Department, response_body=DepartmentOut).add_view_to(router)
         ```
         """
         if isinstance(api_or_router, ninja.NinjaAPI):
@@ -279,15 +283,15 @@ class APIView(abc.ABC):
 
         router = Router()
 
-        read_department = ReadView(Department, DepartmentOut)
+        read_department = ReadView(model=Department, response_body=DepartmentOut)
         router.add_api_operation(**read_department.as_operation())
         ```
         """
         responses: dict[int, Any] = {}
-        if self.response_schema is not NOT_SET:
-            responses[self.status_code or 200] = self.response_schema
-        elif self.status_code is not None:
-            responses[self.status_code] = None
+        if self.response_body is not NOT_SET:
+            responses[self.response_status or 200] = self.response_body
+        elif self.response_status is not None:
+            responses[self.response_status] = None
 
         responses.update(self.responses)
         return {
@@ -302,10 +306,10 @@ class APIView(abc.ABC):
             **self.operation_kwargs,
         }
 
-    def get_default_response_schema(self, api_viewset_class: type["APIViewSet"]) -> Any:
+    def get_default_response_body(self, api_viewset_class: type["APIViewSet"]) -> Any:
         """
         Return the response schema to use when the view is bound to a viewset and
-        no `response_schema` is set. Defaults to the viewset's
+        no `response_body` is set. Defaults to the viewset's
         `default_response_body`; subclasses can override this, e.g. to wrap it in
         a list or to disable it.
         """
@@ -314,29 +318,56 @@ class APIView(abc.ABC):
     def _handler_parameters(self) -> Mapping[str, inspect.Parameter]:
         return inspect.signature(self.handler).parameters
 
-    def _update_handler_annotations(
+    def get_default_request_body(self, api_viewset_class: type["APIViewSet"]) -> Any:
+        """
+        Return the request body to use when the view is bound to a viewset and
+        no `request_body` is set. Defaults to the viewset's `default_request_body`
+        when the handler takes a `request_body`; subclasses can override this,
+        e.g. to disable it.
+        """
+        if "request_body" in self._handler_parameters():
+            return api_viewset_class.default_request_body
+        return None
+
+    def _resolve_handler_signature(
         self, handler: Callable[..., Any]
-    ) -> Callable[..., Any]:
+    ) -> tuple[inspect.Signature, set[str]]:
         """
-        Annotate the handler's `path_parameters`, `query_parameters` and
-        `request_body` parameters, when present, with the view's types so that
-        Django Ninja resolves them from the path, query and body.
+        Return the handler's signature with its `path_parameters`,
+        `query_parameters` and `request_body` parameters, when present,
+        annotated with the view's types so that Django Ninja resolves them from
+        the path, query and body. Parameters whose type is unset are dropped from
+        the signature, and their names are returned alongside it.
         """
-        parameters = self._handler_parameters()
-        annotations = cast(FunctionType, handler).__annotations__
-        if "path_parameters" in parameters:
-            annotations["path_parameters"] = Annotated[
+        signature = inspect.signature(handler)
+        annotations: dict[str, Any] = {}
+        if "path_parameters" in signature.parameters:
+            annotations["path_parameters"] = (
                 self._get_path_parameters_type(),
                 Path(default=None, include_in_schema=False),
-            ]
-        if "query_parameters" in parameters:
-            annotations["query_parameters"] = Annotated[
+            )
+        if "query_parameters" in signature.parameters:
+            annotations["query_parameters"] = (
                 self.query_parameters,
                 Query(default=None, include_in_schema=False),
-            ]
-        if "request_body" in parameters:
-            annotations["request_body"] = Annotated[self.request_body, Body()]
-        return handler
+            )
+        if "request_body" in signature.parameters:
+            annotations["request_body"] = (self.request_body, Body())
+
+        unset_parameters = {
+            name for name, (type_, _) in annotations.items() if type_ is None
+        }
+        parameters = []
+        for parameter in signature.parameters.values():
+            if parameter.name in unset_parameters:
+                continue
+            if parameter.name in annotations:
+                type_, param_function = annotations[parameter.name]
+                parameter = parameter.replace(
+                    annotation=Annotated[type_, param_function]
+                )
+            parameters.append(parameter)
+        return signature.replace(parameters=parameters), unset_parameters
 
     def _get_path_parameters_type(self) -> type[pydantic.BaseModel] | None:
         if self.path_parameters is not None:
@@ -385,17 +416,23 @@ class APIView(abc.ABC):
     def create_standalone_handler(
         self, method: Callable[..., Any]
     ) -> Callable[..., Any]:
+        signature, unset_parameters = self._resolve_handler_signature(method)
+        unset_kwargs = dict.fromkeys(unset_parameters)
+
         @functools.wraps(method)
         async def async_handler(*args: Any, **kwargs: Any) -> Any:
-            return await method(*args, **kwargs)
+            return await method(*args, **unset_kwargs, **kwargs)
 
         @functools.wraps(method)
         def sync_handler(*args: Any, **kwargs: Any) -> Any:
-            return method(*args, **kwargs)
+            return method(*args, **unset_kwargs, **kwargs)
 
         standalone_handler = (
             async_handler if asyncio.iscoroutinefunction(method) else sync_handler
         )
+        # Django Ninja reads the view signature to know what to parse from the
+        # request; parameters left out of it are filled with None above.
+        cast(Any, standalone_handler).__signature__ = signature
 
         if self.name is not None:
             standalone_handler.__name__ = self.name
@@ -417,7 +454,7 @@ class APIView(abc.ABC):
         it: the name defaults to the attribute name, the model to the viewset's
         `model`, the request body (when the handler takes one) to the viewset's
         `default_request_body`, and the response schema to
-        `get_default_response_schema`.
+        `get_default_response_body`.
 
         Args:
             api_viewset_class (type[APIViewSet]): The viewset class the view is
@@ -437,12 +474,11 @@ class APIView(abc.ABC):
 
         self.name = self.name or attribute_name
         self.model = self.model or api_viewset_class.model
-        if "request_body" in self._handler_parameters():
-            self.request_body = (
-                self.request_body or api_viewset_class.default_request_body
-            )
-        if self.response_schema is None:
-            self.response_schema = self.get_default_response_schema(api_viewset_class)
+        self.request_body = self.request_body or self.get_default_request_body(
+            api_viewset_class
+        )
+        if self.response_body is None:
+            self.response_body = self.get_default_response_body(api_viewset_class)
 
     def resolve_path_parameters(
         self, model: type[django.db.models.Model]

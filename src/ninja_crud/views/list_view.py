@@ -22,24 +22,16 @@ class ListView(APIView):
     URL. It is intended to be used in viewsets or as standalone views to simplify the
     creation of list endpoints.
 
+    Takes every `APIView` argument (see `APIView` for their descriptions), with
+    defaults `methods=["GET"]`, `path="/"`, `response_status=200` and
+    `response_body=None`, which inherits the viewset's `default_response_body` as a
+    list type. Does not inherit the viewset's `default_request_body`.
+
     Args:
-        name (str | None, optional): View function name. Defaults to `None`. If None,
-            uses class attribute name in viewsets or "handler" for standalone views.
-        methods (list[str] | set[str], optional): HTTP methods. Defaults to `["GET"]`.
-        path (str, optional): URL path. Defaults to `"/"`.
-        response_status (int, optional): HTTP response status code. Defaults to `200`.
-        response_body (Any, optional): Response body type. Defaults to `None`.
-            If None, uses the default response body of the viewset as a list type.
-        model (type[django.db.models.Model], optional): Associated Django model.
-            Inherits from viewset if not provided. Defaults to `None`.
-        path_parameters (type[BaseModel], optional): Path parameters type.
-            Defaults to `None`. If not provided, resolved from the path and model.
-        query_parameters (type[BaseModel], optional): Query parameters type.
-            Defaults to `None`.
         get_queryset (Callable | None, optional): Callable to retrieve the queryset.
             Default uses `self.model.objects.get_queryset()`. Useful for selecting
             related models or optimizing queries. Should have the signature:
-            - `(request: HttpRequest, path_parameters: Optional[BaseModel]) -> QuerySet`
+            - `(request: HttpRequest, path_parameters: BaseModel | None) -> QuerySet`
         filter_queryset (Callable | None, optional): Callable to filter the queryset.
             Default uses `query_parameters.filter(queryset)` if `query_parameters` is a
             `ninja.FilterSchema`, otherwise filters the queryset based on the query
@@ -49,10 +41,6 @@ class ListView(APIView):
             - `(queryset: QuerySet, query_parameters: BaseModel | None) -> QuerySet`
         pagination_class (type[PaginationBase], optional): Pagination class.
             Defaults to `LimitOffsetPagination`. If None, pagination is disabled.
-        decorators (list[Callable], optional): View function decorators
-            (applied in reverse order). Defaults to `None`.
-        operation_kwargs (dict[str, Any], optional): Additional operation
-            keyword arguments. Defaults to `None`.
 
     Example:
     ```python
@@ -87,29 +75,34 @@ class ListView(APIView):
 
     def __init__(
         self,
-        name: str | None = None,
         methods: list[str] | set[str] | None = None,
         path: str = "/",
+        *,
+        name: str | None = None,
         response_status: int = 200,
         response_body: Any = None,
+        responses: dict[int, Any] | None = None,
         model: type[Model] | None = None,
         path_parameters: type[BaseModel] | None = None,
         query_parameters: type[BaseModel] | None = None,
+        request_body: type[BaseModel] | None = None,
+        decorators: list[Decorator] | None = None,
+        operation_kwargs: dict[str, Any] | None = None,
         get_queryset: QuerySetGetter | None = None,
         filter_queryset: QuerySetFilter | None = None,
         pagination_class: type[PaginationBase] | None = LimitOffsetPagination,
-        decorators: list[Decorator] | None = None,
-        operation_kwargs: dict[str, Any] | None = None,
     ) -> None:
         super().__init__(
-            name=name,
             methods=methods or ["GET"],
             path=path,
-            status_code=response_status,
-            response_schema=response_body,
+            name=name,
+            response_status=response_status,
+            response_body=response_body,
+            responses=responses,
             model=model,
             path_parameters=path_parameters,
             query_parameters=query_parameters,
+            request_body=request_body,
             decorators=decorators,
             operation_kwargs=operation_kwargs,
         )
@@ -124,11 +117,12 @@ class ListView(APIView):
         request: HttpRequest,
         path_parameters: BaseModel | None,
         query_parameters: BaseModel | None,
+        request_body: BaseModel | None,
     ) -> QuerySet[Model]:
         queryset = self.get_queryset(request, path_parameters)
         return self.filter_queryset(queryset, query_parameters)
 
-    def get_default_response_schema(self, api_viewset_class: type["APIViewSet"]) -> Any:
+    def get_default_response_body(self, api_viewset_class: type["APIViewSet"]) -> Any:
         default_response_body = api_viewset_class.default_response_body
         if default_response_body is None:
             return None
@@ -149,3 +143,6 @@ class ListView(APIView):
                 **query_parameters.model_dump(exclude_unset=True)
             )
         return queryset
+
+    def get_default_request_body(self, api_viewset_class: type["APIViewSet"]) -> Any:
+        return None

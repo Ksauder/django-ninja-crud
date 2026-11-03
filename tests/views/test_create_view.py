@@ -36,7 +36,7 @@ class TestCreateView(TestCase):
             instance, "created_by", self.user
         )
         request_body = CollectionIn(name="new-collection")
-        new_instance = self.create_view.handler(HttpRequest(), None, request_body)
+        new_instance = self.create_view.handler(HttpRequest(), None, None, request_body)
 
         self.assertIsInstance(new_instance, Collection)
         self.assertIsNotNone(new_instance.id)
@@ -53,4 +53,4 @@ class TestCreateView(TestCase):
         create_view.bind_to_viewset(CollectionViewSet, "create_view")
         self.assertEqual(create_view.model, Collection)
         self.assertEqual(create_view.request_body, CollectionIn)
-        self.assertEqual(create_view.response_schema, CollectionOut)
+        self.assertEqual(create_view.response_body, CollectionOut)

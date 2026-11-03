@@ -45,7 +45,7 @@ class TestDeleteView(TestCase):
 
     def test_default_view_function(self):
         path_parameters = self.PathParameters(id=self.item.id)
-        self.delete_view.handler(HttpRequest(), path_parameters)
+        self.delete_view.handler(HttpRequest(), path_parameters, None, None)
 
         with self.assertRaises(ObjectDoesNotExist):
             Item.objects.get(id=self.item.id)
@@ -60,4 +60,4 @@ class TestDeleteView(TestCase):
 
         delete_view.bind_to_viewset(ItemViewSet, "delete_view")
         self.assertEqual(delete_view.model, Item)
-        self.assertEqual(delete_view.response_schema, None)
+        self.assertEqual(delete_view.response_body, None)

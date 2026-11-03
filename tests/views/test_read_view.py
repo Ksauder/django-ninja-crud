@@ -45,7 +45,9 @@ class TestReadView(TestCase):
 
     def test_default_view_function(self):
         path_parameters = self.PathParameters(id=self.item.id)
-        model_instance = self.read_view.handler(HttpRequest(), path_parameters)
+        model_instance = self.read_view.handler(
+            HttpRequest(), path_parameters, None, None
+        )
 
         self.assertIsInstance(model_instance, Item)
         self.assertEqual(model_instance.id, self.item.id)
@@ -60,4 +62,4 @@ class TestReadView(TestCase):
 
         read_view.bind_to_viewset(ItemViewSet, "read_view")
         self.assertEqual(read_view.model, Item)
-        self.assertEqual(read_view.response_schema, ItemOut)
+        self.assertEqual(read_view.response_body, ItemOut)

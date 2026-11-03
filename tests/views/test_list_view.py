@@ -65,7 +65,7 @@ class TestListView(TestCase):
 
     def test_default_view_function(self):
         query_parameters = ItemFilter(name="item1")
-        result = self.list_view.handler(HttpRequest(), None, query_parameters)
+        result = self.list_view.handler(HttpRequest(), None, query_parameters, None)
 
         self.assertIsInstance(result, QuerySet)
         self.assertEqual(list(result), [self.item1])
@@ -80,4 +80,4 @@ class TestListView(TestCase):
 
         list_view.bind_to_viewset(ItemViewSet, "list_view")
         self.assertEqual(list_view.model, Item)
-        self.assertEqual(list_view.response_schema, list[ItemOut])
+        self.assertEqual(list_view.response_body, list[ItemOut])

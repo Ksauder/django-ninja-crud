@@ -17,20 +17,11 @@ class CreateView(APIView):
     intended to be used in viewsets or as standalone views to simplify the creation of
     create endpoints.
 
+    Takes every `APIView` argument (see `APIView` for their descriptions), with
+    defaults `methods=["POST"]`, `path="/"`, `response_status=201` and
+    `response_body=None`.
+
     Args:
-        name (str | None, optional): View function name. Defaults to `None`. If None,
-            uses class attribute name in viewsets or "handler" for standalone views.
-        methods (list[str] | set[str], optional): HTTP methods. Defaults to `["POST"]`.
-        path (str, optional): URL path. Defaults to `"/{id}"`.
-        response_status (int, optional): HTTP response status code. Defaults to `201`.
-        response_body (Any, optional): Response body type. Defaults to `None`.
-            If None, uses the default response body of the viewset.
-        model (type[django.db.models.Model], optional): Associated Django model.
-            Inherits from viewset if not provided. Defaults to `None`.
-        path_parameters (type[BaseModel], optional): Path parameters type.
-            Defaults to `None`. If not provided, resolved from the path and model.
-        request_body (Any, optional): The request body type. Defaults to `None`.
-            If None, uses the default request body of the viewset.
         init_model ((HttpRequest, BaseModel | None) -> Model, optional): Initializes
             the model instance. Default creates a new instance of the model with no
             arguments: `lambda request, path_parameters: self.model()`.
@@ -41,10 +32,6 @@ class CreateView(APIView):
             by default.
         post_save ((HttpRequest, Model) -> None, optional): Post-save operations on the
             model instance. Does nothing by default.
-        decorators (list[Callable], optional): View function decorators
-            (applied in reverse order). Defaults to `None`.
-        operation_kwargs (dict[str, Any], optional): Additional operation
-            keyword arguments. Defaults to `None`.
 
     Example:
     ```python
@@ -84,28 +71,33 @@ class CreateView(APIView):
 
     def __init__(
         self,
-        name: str | None = None,
         methods: list[str] | set[str] | None = None,
         path: str = "/",
+        *,
+        name: str | None = None,
         response_status: int = 201,
         response_body: Any = None,
+        responses: dict[int, Any] | None = None,
         model: type[Model] | None = None,
         path_parameters: type[BaseModel] | None = None,
+        query_parameters: type[BaseModel] | None = None,
         request_body: type[BaseModel] | None = None,
+        decorators: list[Decorator] | None = None,
+        operation_kwargs: dict[str, Any] | None = None,
         init_model: ModelGetter | None = None,
         pre_save: ModelHook | None = None,
         post_save: ModelHook | None = None,
-        decorators: list[Decorator] | None = None,
-        operation_kwargs: dict[str, Any] | None = None,
     ) -> None:
         super().__init__(
-            name=name,
             methods=methods or ["POST"],
             path=path,
-            status_code=response_status,
-            response_schema=response_body,
+            name=name,
+            response_status=response_status,
+            response_body=response_body,
+            responses=responses,
             model=model,
             path_parameters=path_parameters,
+            query_parameters=query_parameters,
             request_body=request_body,
             decorators=decorators,
             operation_kwargs=operation_kwargs,
@@ -118,6 +110,7 @@ class CreateView(APIView):
         self,
         request: HttpRequest,
         path_parameters: BaseModel | None,
+        query_parameters: BaseModel | None,
         request_body: BaseModel,
     ) -> Model:
         instance = self.init_model(request, path_parameters)
