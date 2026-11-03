@@ -1,5 +1,11 @@
 { pkgs, config, ... }:
 {
+  env.DJANGO_SETTINGS_MODULE = "tests.test_settings";
+
+  enterShell = ''
+    export PYTHONPATH="$PYTHONPATH:$DEVENV_ROOT/"
+  '';
+
   languages.python = {
     enable = true;
     package = pkgs.python311;
@@ -50,5 +56,10 @@
   tasks."dev:test" = {
     exec = ''uv run -m django test --settings=tests.test_settings'';
     before = [ "devenv:enterTest" ];
+  };
+
+  scripts.dj = {
+    exec = ''django-admin "$@"'';
+    description = "django-admin passthrough";
   };
 }
