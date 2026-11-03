@@ -1,15 +1,19 @@
 import abc
 import asyncio
 import functools
-from collections.abc import Callable
-from typing import TYPE_CHECKING, Any, Union, get_args, get_origin
+import inspect
+from collections.abc import Callable, Mapping
+from types import FunctionType
+from typing import TYPE_CHECKING, Annotated, Any, Union, cast, get_args, get_origin
 
 import django.db.models
 import ninja
 import ninja.orm.fields
 import ninja.signature.utils
 import pydantic
+from django.http import HttpRequest
 from ninja.constants import NOT_SET
+from ninja.params.functions import Body, Path, Query
 
 from ninja_crud.views.types import Decorator
 
@@ -51,6 +55,16 @@ class APIView(abc.ABC):
         name (str, optional): The name of the view function, used by the OpenAPI docs.
             If not provided, defaults to the class attribute name if the view is part
             of a viewset. Defaults to `None`.
+        model (type[django.db.models.Model], optional): Associated Django model.
+            Inherits from viewset if not provided. Defaults to `None`.
+        path_parameters (type[BaseModel], optional): Path parameters type, injected
+            into a handler `path_parameters` argument. Defaults to `None`. If not
+            provided, resolved from the path and model.
+        query_parameters (type[BaseModel], optional): Query parameters type,
+            injected into a handler `query_parameters` argument. Defaults to `None`.
+        request_body (type[BaseModel], optional): Request body type, injected into a
+            handler `request_body` argument. Defaults to `None`. If not provided,
+            inherits the viewset's `default_request_body`.
         decorators (list[Callable], optional): View function decorators
             (applied in reverse order). Defaults to `None`.
         operation_kwargs (dict[str, Any], optional): Additional operation
@@ -195,6 +209,10 @@ class APIView(abc.ABC):
         status_code: int | None = None,
         responses: dict[int, Any] | None = None,
         name: str | None = None,
+        model: type[django.db.models.Model] | None = None,
+        path_parameters: type[pydantic.BaseModel] | None = None,
+        query_parameters: type[pydantic.BaseModel] | None = None,
+        request_body: type[pydantic.BaseModel] | None = None,
         decorators: list[Decorator] | None = None,
         operation_kwargs: dict[str, Any] | None = None,
     ) -> None:
@@ -204,7 +222,11 @@ class APIView(abc.ABC):
         self.status_code = status_code
         self.responses = responses or {}
         self.name = name
-        self.decorators = decorators or []
+        self.model = model
+        self.path_parameters = path_parameters
+        self.query_parameters = query_parameters
+        self.request_body = request_body
+        self.decorators = [*(decorators or []), self._update_handler_annotations]
         self.operation_kwargs = operation_kwargs or {}
         self._api_viewset_class: type[APIViewSet] | None = None
 
@@ -280,6 +302,59 @@ class APIView(abc.ABC):
             **self.operation_kwargs,
         }
 
+    def get_default_response_schema(self, api_viewset_class: type["APIViewSet"]) -> Any:
+        """
+        Return the response schema to use when the view is bound to a viewset and
+        no `response_schema` is set. Defaults to the viewset's
+        `default_response_body`; subclasses can override this, e.g. to wrap it in
+        a list or to disable it.
+        """
+        return api_viewset_class.default_response_body
+
+    def _handler_parameters(self) -> Mapping[str, inspect.Parameter]:
+        return inspect.signature(self.handler).parameters
+
+    def _update_handler_annotations(
+        self, handler: Callable[..., Any]
+    ) -> Callable[..., Any]:
+        """
+        Annotate the handler's `path_parameters`, `query_parameters` and
+        `request_body` parameters, when present, with the view's types so that
+        Django Ninja resolves them from the path, query and body.
+        """
+        parameters = self._handler_parameters()
+        annotations = cast(FunctionType, handler).__annotations__
+        if "path_parameters" in parameters:
+            annotations["path_parameters"] = Annotated[
+                self._get_path_parameters_type(),
+                Path(default=None, include_in_schema=False),
+            ]
+        if "query_parameters" in parameters:
+            annotations["query_parameters"] = Annotated[
+                self.query_parameters,
+                Query(default=None, include_in_schema=False),
+            ]
+        if "request_body" in parameters:
+            annotations["request_body"] = Annotated[self.request_body, Body()]
+        return handler
+
+    def _get_path_parameters_type(self) -> type[pydantic.BaseModel] | None:
+        if self.path_parameters is not None:
+            return self.path_parameters
+        if not self.model:
+            raise ValueError(
+                f"Unable to determine model for view {self.name}. "
+                "Please set a model either on the view or on its associated viewset."
+            )
+        return self.resolve_path_parameters(self.model)
+
+    def _default_get_model(
+        self, request: HttpRequest, path_parameters: pydantic.BaseModel | None
+    ) -> django.db.models.Model:
+        return cast(type[django.db.models.Model], self.model).objects.get(
+            **(path_parameters.model_dump() if path_parameters else {})
+        )
+
     @abc.abstractmethod
     def handler(self, *args: Any, **kwargs: Any) -> Any:
         """
@@ -331,14 +406,43 @@ class APIView(abc.ABC):
     def api_viewset_class(self) -> type["APIViewSet"] | None:
         return self._api_viewset_class
 
-    @api_viewset_class.setter
-    def api_viewset_class(self, api_viewset_class: type["APIViewSet"]) -> None:
+    def bind_to_viewset(
+        self, api_viewset_class: type["APIViewSet"], attribute_name: str
+    ) -> None:
+        """
+        Bind the view to the viewset it is declared on. Called by
+        `APIViewSet.add_views_to` for each view class attribute.
+
+        Records the viewset class and fills in the attributes left unset from
+        it: the name defaults to the attribute name, the model to the viewset's
+        `model`, the request body (when the handler takes one) to the viewset's
+        `default_request_body`, and the response schema to
+        `get_default_response_schema`.
+
+        Args:
+            api_viewset_class (type[APIViewSet]): The viewset class the view is
+                declared on.
+            attribute_name (str): The name of the viewset class attribute holding
+                the view.
+
+        Raises:
+            ValueError: If the view is already bound to a viewset.
+        """
         if self._api_viewset_class:
             raise ValueError(
-                f"View '{self.name}' is already bound to a viewset. "
-                "Views cannot be reassigned once they are bound."
+                f"View '{self.name or attribute_name}' is already bound to a "
+                "viewset. Views cannot be reassigned once they are bound."
             )
         self._api_viewset_class = api_viewset_class
+
+        self.name = self.name or attribute_name
+        self.model = self.model or api_viewset_class.model
+        if "request_body" in self._handler_parameters():
+            self.request_body = (
+                self.request_body or api_viewset_class.default_request_body
+            )
+        if self.response_schema is None:
+            self.response_schema = self.get_default_response_schema(api_viewset_class)
 
     def resolve_path_parameters(
         self, model: type[django.db.models.Model]

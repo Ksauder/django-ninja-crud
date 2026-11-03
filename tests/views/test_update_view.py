@@ -55,7 +55,7 @@ class TestUpdateView(TestCase):
         self.assertEqual(updated_instance.id, self.item.id)
         self.assertEqual(updated_instance.name, "updated-item")
 
-    def test_set_api_viewset_class(self):
+    def test_bind_to_viewset(self):
         update_view = views.UpdateView()
 
         class ItemViewSet(viewsets.APIViewSet):
@@ -63,8 +63,7 @@ class TestUpdateView(TestCase):
             default_request_body = ItemIn
             default_response_body = ItemOut
 
-        update_view.api_viewset_class = ItemViewSet
-        update_view.as_operation()
+        update_view.bind_to_viewset(ItemViewSet, "update_view")
         self.assertEqual(update_view.model, Item)
         self.assertEqual(update_view.request_body, ItemIn)
         self.assertEqual(update_view.response_schema, ItemOut)

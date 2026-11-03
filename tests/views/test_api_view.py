@@ -14,15 +14,8 @@ from tests.test_app.models import Item
 class TestAPIView(TestCase):
     def setUp(self):
         class ReusableAPIView(views.APIView):
-            model = None
-
             def handler(self, *args: Any, **kwargs: Any) -> Any:
                 """This is a handler method."""
-
-            def as_operation(self) -> dict[str, Any]:
-                if self.api_viewset_class and not self.model:
-                    self.model = self.api_viewset_class.model
-                return super().as_operation()
 
         self.api_view = ReusableAPIView(
             name="delete_item",
@@ -69,20 +62,26 @@ class TestAPIView(TestCase):
             },
         )
 
-    def test_api_viewset_class(self):
+    def test_bind_to_viewset(self):
         class ViewSet(viewsets.APIViewSet):
             model = Item
 
+        self.api_view.name = None
         self.assertIsNone(self.api_view.api_viewset_class)
-        self.api_view.api_viewset_class = ViewSet
+        self.api_view.bind_to_viewset(ViewSet, "read_item")
         self.assertEqual(self.api_view.api_viewset_class, ViewSet)
+        self.assertEqual(self.api_view.name, "read_item")
+        self.assertEqual(self.api_view.model, Item)
 
         with self.assertRaises(ValueError):
-            self.api_view.api_viewset_class = ViewSet
+            self.api_view.bind_to_viewset(ViewSet, "read_item")
 
-        self.api_view.as_operation()
-        self.assertEqual(self.api_view.model, Item)
-        self.assertIsNotNone(self.api_view.resolve_path_parameters(model=Item))
+    def test_bind_to_viewset_keeps_explicit_name(self):
+        class ViewSet(viewsets.APIViewSet):
+            model = Item
+
+        self.api_view.bind_to_viewset(ViewSet, "read_item")
+        self.assertEqual(self.api_view.name, "delete_item")
 
     def test_resolve_path_parameters(self):
         self.api_view.path = "/{id}"

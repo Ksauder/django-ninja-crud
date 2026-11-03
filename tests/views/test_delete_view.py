@@ -50,7 +50,7 @@ class TestDeleteView(TestCase):
         with self.assertRaises(ObjectDoesNotExist):
             Item.objects.get(id=self.item.id)
 
-    def test_set_api_viewset_class(self):
+    def test_bind_to_viewset(self):
         delete_view = views.DeleteView()
 
         class ItemViewSet(viewsets.APIViewSet):
@@ -58,7 +58,6 @@ class TestDeleteView(TestCase):
             default_request_body = ItemIn
             default_response_body = ItemOut
 
-        delete_view.api_viewset_class = ItemViewSet
-        delete_view.as_operation()
+        delete_view.bind_to_viewset(ItemViewSet, "delete_view")
         self.assertEqual(delete_view.model, Item)
         self.assertEqual(delete_view.response_schema, None)

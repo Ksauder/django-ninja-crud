@@ -1,10 +1,7 @@
-from collections.abc import Callable
-from types import FunctionType
-from typing import Annotated, Any, cast
+from typing import Any, cast
 
 from django.db.models import ManyToManyField, Model
 from django.http import HttpRequest
-from ninja.params.functions import Body, Path
 from pydantic import BaseModel
 
 from ninja_crud.views.api_view import APIView
@@ -107,13 +104,12 @@ class CreateView(APIView):
             path=path,
             status_code=response_status,
             response_schema=response_body,
+            model=model,
+            path_parameters=path_parameters,
+            request_body=request_body,
             decorators=decorators,
             operation_kwargs=operation_kwargs,
         )
-        self.model = model
-        self.decorators.append(self._update_handler_annotations)
-        self.path_parameters = path_parameters
-        self.request_body = request_body
         self.init_model = init_model or self._default_init_model
         self.pre_save = pre_save or (lambda request, instance: instance.full_clean())
         self.post_save = post_save or (lambda request, instance: None)
@@ -142,37 +138,7 @@ class CreateView(APIView):
 
         return instance
 
-    def _update_handler_annotations(
-        self, handler: Callable[..., Any]
-    ) -> Callable[..., Any]:
-        annotations = cast(FunctionType, handler).__annotations__
-        annotations["path_parameters"] = Annotated[
-            self.path_parameters, Path(default=None, include_in_schema=False)
-        ]
-        annotations["request_body"] = Annotated[self.request_body, Body()]
-        return handler
-
     def _default_init_model(
         self, request: HttpRequest, path_parameters: BaseModel | None
     ) -> Model:
         return cast(type[Model], self.model)()
-
-    def as_operation(self) -> dict[str, Any]:
-        if self.api_viewset_class:
-            self.model = self.model or self.api_viewset_class.model
-            self.request_body = (
-                self.request_body or self.api_viewset_class.default_request_body
-            )
-            self.response_schema = (
-                self.response_schema or self.api_viewset_class.default_response_body
-            )
-
-        if not self.model:
-            raise ValueError(
-                f"Unable to determine model for view {self.name}. "
-                "Please set a model either on the view or on its associated viewset."
-            )
-        self.path_parameters = self.path_parameters or self.resolve_path_parameters(
-            self.model
-        )
-        return super().as_operation()

@@ -1,14 +1,14 @@
-from collections.abc import Callable
-from types import FunctionType
-from typing import Annotated, Any, cast
+from typing import TYPE_CHECKING, Any
 
 from django.db.models import Model
 from django.http import HttpRequest
-from ninja.params.functions import Path
 from pydantic import BaseModel
 
 from ninja_crud.views.api_view import APIView
 from ninja_crud.views.types import Decorator, ModelGetter, ModelHook
+
+if TYPE_CHECKING:
+    from ninja_crud.viewsets import APIViewSet
 
 
 class DeleteView(APIView):
@@ -93,12 +93,11 @@ class DeleteView(APIView):
             path=path,
             status_code=response_status,
             response_schema=response_body,
+            model=model,
+            path_parameters=path_parameters,
             decorators=decorators,
             operation_kwargs=operation_kwargs,
         )
-        self.model = model
-        self.decorators.append(self._update_handler_annotations)
-        self.path_parameters = path_parameters
         self.get_model = get_model or self._default_get_model
         self.pre_delete = pre_delete or (lambda request, instance: None)
         self.post_delete = post_delete or (lambda request, instance: None)
@@ -113,32 +112,5 @@ class DeleteView(APIView):
         instance.delete()
         self.post_delete(request, instance)
 
-    def _update_handler_annotations(
-        self, handler: Callable[..., Any]
-    ) -> Callable[..., Any]:
-        annotations = cast(FunctionType, handler).__annotations__
-        annotations["path_parameters"] = Annotated[
-            self.path_parameters, Path(default=None, include_in_schema=False)
-        ]
-        return handler
-
-    def _default_get_model(
-        self, request: HttpRequest, path_parameters: BaseModel | None
-    ) -> Model:
-        return cast(type[Model], self.model).objects.get(
-            **(path_parameters.model_dump() if path_parameters else {})
-        )
-
-    def as_operation(self) -> dict[str, Any]:
-        if self.api_viewset_class:
-            self.model = self.model or self.api_viewset_class.model
-
-        if not self.model:
-            raise ValueError(
-                f"Unable to determine model for view {self.name}. "
-                "Please set a model either on the view or on its associated viewset."
-            )
-        self.path_parameters = self.path_parameters or self.resolve_path_parameters(
-            self.model
-        )
-        return super().as_operation()
+    def get_default_response_schema(self, api_viewset_class: type["APIViewSet"]) -> Any:
+        return None

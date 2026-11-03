@@ -42,7 +42,7 @@ class TestCreateView(TestCase):
         self.assertIsNotNone(new_instance.id)
         self.assertEqual(new_instance.name, "new-collection")
 
-    def test_set_api_viewset_class(self):
+    def test_bind_to_viewset(self):
         create_view = views.CreateView()
 
         class CollectionViewSet(viewsets.APIViewSet):
@@ -50,8 +50,7 @@ class TestCreateView(TestCase):
             default_request_body = CollectionIn
             default_response_body = CollectionOut
 
-        create_view.api_viewset_class = CollectionViewSet
-        create_view.as_operation()
+        create_view.bind_to_viewset(CollectionViewSet, "create_view")
         self.assertEqual(create_view.model, Collection)
         self.assertEqual(create_view.request_body, CollectionIn)
         self.assertEqual(create_view.response_schema, CollectionOut)

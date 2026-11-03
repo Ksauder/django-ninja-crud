@@ -70,7 +70,7 @@ class TestListView(TestCase):
         self.assertIsInstance(result, QuerySet)
         self.assertEqual(list(result), [self.item1])
 
-    def test_set_api_viewset_class(self):
+    def test_bind_to_viewset(self):
         list_view = views.ListView()
 
         class ItemViewSet(viewsets.APIViewSet):
@@ -78,7 +78,6 @@ class TestListView(TestCase):
             default_request_body = ItemIn
             default_response_body = ItemOut
 
-        list_view.api_viewset_class = ItemViewSet
-        list_view.as_operation()
+        list_view.bind_to_viewset(ItemViewSet, "list_view")
         self.assertEqual(list_view.model, Item)
         self.assertEqual(list_view.response_schema, list[ItemOut])

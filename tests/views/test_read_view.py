@@ -50,7 +50,7 @@ class TestReadView(TestCase):
         self.assertIsInstance(model_instance, Item)
         self.assertEqual(model_instance.id, self.item.id)
 
-    def test_set_api_viewset_class(self):
+    def test_bind_to_viewset(self):
         read_view = views.ReadView()
 
         class ItemViewSet(viewsets.APIViewSet):
@@ -58,7 +58,6 @@ class TestReadView(TestCase):
             default_request_body = ItemIn
             default_response_body = ItemOut
 
-        read_view.api_viewset_class = ItemViewSet
-        read_view.as_operation()
+        read_view.bind_to_viewset(ItemViewSet, "read_view")
         self.assertEqual(read_view.model, Item)
         self.assertEqual(read_view.response_schema, ItemOut)
